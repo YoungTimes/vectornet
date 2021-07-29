@@ -51,8 +51,8 @@ class ArgoverseData(object):
 
         self.pickle_filename = "./train_dataset.pkl"
 
-        self.max_elems_in_sub_graph = 160
-        self.max_features_in_elems = 100
+        self.max_elems_in_sub_graph = 200
+        self.max_features_in_elems = 200
         self.max_feature_dim = 9
 
         self.obs_len = 20
@@ -574,14 +574,14 @@ class ArgoverseData(object):
 
             sub_graph = np.array(sub_graph)
 
-            min_x = np.min(sub_graph[:, :, [0, 2]])
-            max_x = np.max(sub_graph[:, :, [0, 2]])
+            # min_x = np.min(sub_graph[:, :, [0, 2]])
+            # max_x = np.max(sub_graph[:, :, [0, 2]])
 
-            min_y = np.min(sub_graph[:, :, [1, 3]])
-            max_y = np.max(sub_graph[:, :, [1, 3]])
+            # min_y = np.min(sub_graph[:, :, [1, 3]])
+            # max_y = np.max(sub_graph[:, :, [1, 3]])
 
-            min_4 = np.min(sub_graph[:, :, [4]])
-            max_4 = np.max(sub_graph[:, :, [4]])
+            # min_4 = np.min(sub_graph[:, :, [4]])
+            # max_4 = np.max(sub_graph[:, :, [4]])
 
             # min_5 = np.min(sub_graph[:, :, [5]])
             # max_5 = np.max(sub_graph[:, :, [5]])
@@ -592,19 +592,19 @@ class ArgoverseData(object):
             # min_7 = np.min(sub_graph[:, :, [7]])
             # max_7 = np.max(sub_graph[:, :, [7]])
 
-            min_8 = np.min(sub_graph[:, :, [8]])
-            max_8 = np.max(sub_graph[:, :, [8]])
+            # min_8 = np.min(sub_graph[:, :, [8]])
+            # max_8 = np.max(sub_graph[:, :, [8]])
 
-            min_label_x = np.min(offset_agent_traj[:self.obs_len, [0]])
-            max_label_x = np.max(offset_agent_traj[:self.obs_len, [0]])
-            min_label_y = np.min(offset_agent_traj[:self.obs_len, [1]])
-            max_label_y = np.max(offset_agent_traj[:self.obs_len, [1]])
+            # min_label_x = np.min(offset_agent_traj[:self.obs_len, [0]])
+            # max_label_x = np.max(offset_agent_traj[:self.obs_len, [0]])
+            # min_label_y = np.min(offset_agent_traj[:self.obs_len, [1]])
+            # max_label_y = np.max(offset_agent_traj[:self.obs_len, [1]])
 
-            scale_label_x = max(abs(min_label_x), abs(max_label_x))
-            scale_label_y = max(abs(min_label_y), abs(max_label_y))
+            # scale_label_x = max(abs(min_label_x), abs(max_label_x))
+            # scale_label_y = max(abs(min_label_y), abs(max_label_y))
 
-            sub_graph[:, :, [0, 2]] = sub_graph[:, :, [0, 2]] / scale_label_x
-            sub_graph[:, :, [1, 3]] = sub_graph[:, :, [1, 3]] / scale_label_y
+            # sub_graph[:, :, [0, 2]] = sub_graph[:, :, [0, 2]] / scale_label_x
+            # sub_graph[:, :, [1, 3]] = sub_graph[:, :, [1, 3]] / scale_label_y
 
             # min_x = float('inf')
             # max_x = float('-inf')
@@ -616,41 +616,41 @@ class ArgoverseData(object):
             # min_y = min(min_y, min_label_y)
             # max_y = max(max_y, max_label_y)
 
-            min_x = np.min(sub_graph[:, :, [0, 2]])
-            max_x = np.max(sub_graph[:, :, [0, 2]])
+            # min_x = np.min(sub_graph[:, :, [0, 2]])
+            # max_x = np.max(sub_graph[:, :, [0, 2]])
 
-            min_y = np.min(sub_graph[:, :, [1, 3]])
-            max_y = np.max(sub_graph[:, :, [1, 3]])
+            # min_y = np.min(sub_graph[:, :, [1, 3]])
+            # max_y = np.max(sub_graph[:, :, [1, 3]])
 
             # normalize
-            x_scale =  max(abs(min_x), abs(max_x))
-            y_scale =  max(abs(min_y), abs(max_y))
-            scale_4 = max(abs(min_4), abs(max_4))
+            # x_scale =  max(abs(min_x), abs(max_x))
+            # y_scale =  max(abs(min_y), abs(max_y))
+            # scale_4 = max(abs(min_4), abs(max_4))
             # scale_5 = max(abs(min_5), abs(max_5))
             # scale_6 = max(abs(min_6), abs(max_6))
             # scale_7 = max(abs(min_7), abs(max_7))
-            scale_8 = max(abs(min_8), abs(max_8))
+            # scale_8 = max(abs(min_8), abs(max_8))
 
             # x_scale =  max_x - min_x
             # y_scale =  max_y - min_y
             # scale_4 =  max_4 - min_4
 
 
-            sub_graph[:, :, [0, 2]] = sub_graph[:, :, [0, 2]] / x_scale
-            sub_graph[:, :, [1, 3]] = sub_graph[:, :, [1, 3]] / y_scale
+            # sub_graph[:, :, [0, 2]] = sub_graph[:, :, [0, 2]] / x_scale
+            # sub_graph[:, :, [1, 3]] = sub_graph[:, :, [1, 3]] / y_scale
 
-            sub_graph[:, :, [4]] = sub_graph[:, :, [4]] / scale_4
+            # sub_graph[:, :, [4]] = sub_graph[:, :, [4]] / scale_4
             # sub_graph[:, :, [5]] = sub_graph[:, :, [5]] / scale_5
             # sub_graph[:, :, [6]] = sub_graph[:, :, [6]] / scale_6
             # sub_graph[:, :, [7]] = sub_graph[:, :, [7]] / scale_7
-            sub_graph[:, :, [8]] = sub_graph[:, :, [8]] / scale_8
+            # sub_graph[:, :, [8]] = sub_graph[:, :, [8]] / scale_8
 
             # print("x_scale:" + str(x_scale) + ", y_scale:" + str(y_scale))
 
-            print("scale_label_x:" + str(scale_label_x) + ", x_scale:" + str(x_scale) + ", scale_label_y:" + str(scale_label_y) + ", y_scale:" + str(y_scale))
+            # print("scale_label_x:" + str(scale_label_x) + ", x_scale:" + str(x_scale) + ", scale_label_y:" + str(scale_label_y) + ", y_scale:" + str(y_scale))
 
-            agent_label[:, [0]] = agent_label[:, [0]]
-            agent_label[:, [1]] = agent_label[:, [1]]
+            # agent_label[:, [0]] = agent_label[:, [0]]
+            # agent_label[:, [1]] = agent_label[:, [1]]
 
             # print(agent_label)
 
@@ -717,7 +717,7 @@ class ArgoverseData(object):
 
         # print(self.features)
 
-        print("features len:" + str(len(self.features)) + ", batch size:" + str(self.args.batch_size))
+        # print("features len:" + str(len(self.features)) + ", batch size:" + str(self.args.batch_size))
 
         if os.path.exists(self.pickle_filename):
             os.remove(self.pickle_filename)
