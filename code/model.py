@@ -1,10 +1,4 @@
-from matplotlib.pyplot import pink
 import tensorflow as tf
-from tensorflow.python.autograph.core.converter import Feature
-from tensorflow.python.keras.backend import dropout
-from tensorflow.python.keras.engine import training
-from tensorflow.python.ops.custom_gradient import grad_pass_through
-from tensorflow.python.ops.gen_batch_ops import batch
 
 class MLP(tf.keras.Model):
     """
@@ -103,7 +97,7 @@ class SubGraph(tf.keras.Model):
 class GlobalGraph(tf.keras.Model):
     def __init__(self):
         super(GlobalGraph, self).__init__()
-        self.attention = tf.keras.layers.Attention()
+        self.attention = tf.keras.layers.Attention(dropout = 0.1, use_scale = True)
         self.fc1 = tf.keras.layers.Dense(units = 64, kernel_initializer=tf.keras.initializers.HeNormal())
         self.fc2 = tf.keras.layers.Dense(units = 64, kernel_initializer=tf.keras.initializers.HeNormal())
         self.fc3 = tf.keras.layers.Dense(units = 64, kernel_initializer=tf.keras.initializers.HeNormal())
@@ -112,13 +106,11 @@ class GlobalGraph(tf.keras.Model):
         featues = inputs[0]
         graph_mask = inputs[1]
 
-        featues = tf.keras.layers.Dropout(0.1)(featues, training=training)
-
         query = self.fc1(featues)
         value = self.fc2(featues)
         key = self.fc3(featues)
 
-        x = self.attention([query, value, key], mask = [graph_mask, graph_mask])
+        x, attention_score = self.attention([query, value, key], mask = [graph_mask, graph_mask], return_attention_scores = True,  training = training)
 
         # print("x shape:" + str(x.shape) + ", query shape:" + str(query.shape))
 
@@ -126,7 +118,7 @@ class GlobalGraph(tf.keras.Model):
 
         x = tf.math.reduce_mean(x, axis = 1)
 
-        return x
+        return x, attention_score
 
 
 class VectorNet(tf.keras.Model):
@@ -172,10 +164,10 @@ class VectorNet(tf.keras.Model):
         # output: global_graphs = [batch_size, sub_graph, feature_len * 2**self.layers_num]
 
         # tf.print(global_graphs)
-        x = tf.math.l2_normalize(global_graphs, axis = -1)
-        # x = global_graphs
+        # x = tf.math.l2_normalize(global_graphs, axis = -1)
+        x = global_graphs
 
-        x = self.global_graph([x, graph_masks], training)
+        x, attention_score = self.global_graph([x, graph_masks], training)
 
         # output: x = [batch_size, sub_graph, 64]
 

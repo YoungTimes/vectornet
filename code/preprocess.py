@@ -16,8 +16,6 @@ from argoverse.utils.centerline_utils import (
     remove_overlapping_lane_seq,
 )
 from argoverse.utils.mpl_plotting_utils import visualize_centerline
-from tensorflow.python.ops.gen_math_ops import angle, sub
-from tensorflow.python.ops.numpy_ops.np_array_ops import pad
 
 import random
 import pandas as pd
@@ -49,16 +47,16 @@ class ArgoverseData(object):
 
         self.args = args
 
-        self.pickle_filename = "./train_dataset.pkl"
+        self.pickle_filename = "/home/featurize/data/train_dataset.pkl"
 
-        self.max_elems_in_sub_graph = 200
-        self.max_features_in_elems = 200
+        self.max_elems_in_sub_graph = 100
+        self.max_features_in_elems = 100
         self.max_feature_dim = 9
 
         self.obs_len = 20
         self.pred_len = 30
 
-        self.feature_small_size = 300
+        self.feature_small_size = 2000
 
     def next_batch(self):
         x_batch = []
@@ -276,6 +274,7 @@ class ArgoverseData(object):
         # feq_cnt = 0
         #for argoverse_forecasting_data in (afl):
         for i in range(0, num_sequences):
+            print("process {}/{}".format(i, num_sequences))
             # feq_cnt = feq_cnt + 1
             # if feq_cnt >= self.feature_small_size:
             #     break
@@ -468,21 +467,18 @@ class ArgoverseData(object):
                     sub_graph.append(lane_features)
                     sub_graph_mask.append(lane_features_mask)
 
-                    origin_left_bound, origin_right_bound = self.centerline_to_polygon(centerline_2d)
+#                     origin_left_bound, origin_right_bound = self.centerline_to_polygon(centerline_2d)
 
-                    origin_left_bound = self.interpolate_polyline(origin_left_bound)
-                    origin_right_bound = self.interpolate_polyline(origin_right_bound)
+#                     origin_left_bound = self.interpolate_polyline(origin_left_bound)
+#                     origin_right_bound = self.interpolate_polyline(origin_right_bound)
 
-                    left_bound = self.normalized_map(origin_left_bound, base_pt, angle)
-                    right_bound = self.normalized_map(origin_right_bound, base_pt, angle)
+#                     left_bound = self.normalized_map(origin_left_bound, base_pt, angle)
+#                     right_bound = self.normalized_map(origin_right_bound, base_pt, angle)
 
 
-                    # print(len(sub_graph))
-                    # print("===========")
-                    self.create_bound_features(left_bound, "left", lane_id, city_name, avm, sub_graph, sub_graph_mask)
-                    # print(len(sub_graph))
-                    self.create_bound_features(right_bound, "right", lane_id, city_name, avm, sub_graph, sub_graph_mask)
-                    # print(len(sub_graph))
+                    #self.create_bound_features(left_bound, "left", lane_id, city_name, avm, sub_graph, sub_graph_mask)
+
+                    #self.create_bound_features(right_bound, "right", lane_id, city_name, avm, sub_graph, sub_graph_mask)
 
 
             # if len(sub_graph) <= 0:
@@ -511,15 +507,15 @@ class ArgoverseData(object):
 
                 # distance
                 dis = np.linalg.norm(agent_1 - agent_0)
-                # agent_feature.append(dis)
+                agent_feature.append(dis)
 
                 # heading
-                unit_vec = (agent_1 - agent_0)
-                agent_feature.append(unit_vec[0])
-                agent_feature.append(unit_vec[1])
+                # unit_vec = (agent_1 - agent_0)
+                # agent_feature.append(unit_vec[0])
+                # agent_feature.append(unit_vec[1])
 
-                # victory
-                # agent_feature.append(0)
+                # id
+                agent_feature.append(1111)
 
                 agent_features.append(agent_feature)
 
@@ -540,7 +536,7 @@ class ArgoverseData(object):
 
             # print(sub_graph)
 
-            print("sub graph len:" + str(len(sub_graph)))
+            # print("sub graph len:" + str(len(sub_graph)))
             # print(sub_graph[-1])
 
             # sub_graph_mask = [[[1] * self.max_feature_dim] * self.max_features_in_elems]  * len(sub_graph)
@@ -574,14 +570,14 @@ class ArgoverseData(object):
 
             sub_graph = np.array(sub_graph)
 
-            # min_x = np.min(sub_graph[:, :, [0, 2]])
-            # max_x = np.max(sub_graph[:, :, [0, 2]])
+            min_x = np.min(sub_graph[:, :, [0, 2]])
+            max_x = np.max(sub_graph[:, :, [0, 2]])
 
-            # min_y = np.min(sub_graph[:, :, [1, 3]])
-            # max_y = np.max(sub_graph[:, :, [1, 3]])
+            min_y = np.min(sub_graph[:, :, [1, 3]])
+            max_y = np.max(sub_graph[:, :, [1, 3]])
 
-            # min_4 = np.min(sub_graph[:, :, [4]])
-            # max_4 = np.max(sub_graph[:, :, [4]])
+            min_4 = np.min(sub_graph[:, :, [4]])
+            max_4 = np.max(sub_graph[:, :, [4]])
 
             # min_5 = np.min(sub_graph[:, :, [5]])
             # max_5 = np.max(sub_graph[:, :, [5]])
@@ -592,19 +588,19 @@ class ArgoverseData(object):
             # min_7 = np.min(sub_graph[:, :, [7]])
             # max_7 = np.max(sub_graph[:, :, [7]])
 
-            # min_8 = np.min(sub_graph[:, :, [8]])
-            # max_8 = np.max(sub_graph[:, :, [8]])
+            min_8 = np.min(sub_graph[:, :, [8]])
+            max_8 = np.max(sub_graph[:, :, [8]])
 
-            # min_label_x = np.min(offset_agent_traj[:self.obs_len, [0]])
-            # max_label_x = np.max(offset_agent_traj[:self.obs_len, [0]])
-            # min_label_y = np.min(offset_agent_traj[:self.obs_len, [1]])
-            # max_label_y = np.max(offset_agent_traj[:self.obs_len, [1]])
+#             min_label_x = np.min(offset_agent_traj[:self.obs_len, [0]])
+#             max_label_x = np.max(offset_agent_traj[:self.obs_len, [0]])
+#             min_label_y = np.min(offset_agent_traj[:self.obs_len, [1]])
+#             max_label_y = np.max(offset_agent_traj[:self.obs_len, [1]])
 
-            # scale_label_x = max(abs(min_label_x), abs(max_label_x))
-            # scale_label_y = max(abs(min_label_y), abs(max_label_y))
+#             scale_label_x = max(abs(min_label_x), abs(max_label_x))
+#             scale_label_y = max(abs(min_label_y), abs(max_label_y))
 
-            # sub_graph[:, :, [0, 2]] = sub_graph[:, :, [0, 2]] / scale_label_x
-            # sub_graph[:, :, [1, 3]] = sub_graph[:, :, [1, 3]] / scale_label_y
+#             sub_graph[:, :, [0, 2]] = sub_graph[:, :, [0, 2]] / scale_label_x
+#             sub_graph[:, :, [1, 3]] = sub_graph[:, :, [1, 3]] / scale_label_y
 
             # min_x = float('inf')
             # max_x = float('-inf')
@@ -623,27 +619,27 @@ class ArgoverseData(object):
             # max_y = np.max(sub_graph[:, :, [1, 3]])
 
             # normalize
-            # x_scale =  max(abs(min_x), abs(max_x))
-            # y_scale =  max(abs(min_y), abs(max_y))
-            # scale_4 = max(abs(min_4), abs(max_4))
+            x_scale =  max(abs(min_x), abs(max_x))
+            y_scale =  max(abs(min_y), abs(max_y))
+            scale_4 = max(abs(min_4), abs(max_4))
             # scale_5 = max(abs(min_5), abs(max_5))
             # scale_6 = max(abs(min_6), abs(max_6))
             # scale_7 = max(abs(min_7), abs(max_7))
-            # scale_8 = max(abs(min_8), abs(max_8))
+            scale_8 = max(abs(min_8), abs(max_8))
 
             # x_scale =  max_x - min_x
             # y_scale =  max_y - min_y
             # scale_4 =  max_4 - min_4
 
 
-            # sub_graph[:, :, [0, 2]] = sub_graph[:, :, [0, 2]] / x_scale
-            # sub_graph[:, :, [1, 3]] = sub_graph[:, :, [1, 3]] / y_scale
+            sub_graph[:, :, [0, 2]] = sub_graph[:, :, [0, 2]] / x_scale
+            sub_graph[:, :, [1, 3]] = sub_graph[:, :, [1, 3]] / y_scale
 
-            # sub_graph[:, :, [4]] = sub_graph[:, :, [4]] / scale_4
+            sub_graph[:, :, [4]] = sub_graph[:, :, [4]] / scale_4
             # sub_graph[:, :, [5]] = sub_graph[:, :, [5]] / scale_5
             # sub_graph[:, :, [6]] = sub_graph[:, :, [6]] / scale_6
             # sub_graph[:, :, [7]] = sub_graph[:, :, [7]] / scale_7
-            # sub_graph[:, :, [8]] = sub_graph[:, :, [8]] / scale_8
+            sub_graph[:, :, [8]] = sub_graph[:, :, [8]] / scale_8
 
             # print("x_scale:" + str(x_scale) + ", y_scale:" + str(y_scale))
 
@@ -697,7 +693,7 @@ class ArgoverseData(object):
             self.origin_input_trajs.append(agent_traj[:self.obs_len])
 
 
-        self.num_batchs = (int)(len(self.features) / self.args.batch_size) + 1
+        self.num_batchs = (int)(len(self.features) / self.args.batch_size)
         self.features = np.array(self.features)
 
         self.labels = np.array(self.labels).astype('float32')

@@ -1,7 +1,5 @@
 import sys
-from numpy.testing._private.utils import measure
 from preprocess import ArgoverseData
-import tensorflow as tf
 from model import VectorNet
 import argparse
 import numpy as np
@@ -15,6 +13,7 @@ from argoverse.evaluation.eval_forecasting import get_displacement_errors_and_mi
 from shapely.geometry import Point, Polygon, LineString, LinearRing
 from shapely.affinity import affine_transform, rotate
 
+import tensorflow as tf
 # TODO: learn about generator
 
 # dataset_filename = "./train_dataset.pkl"
@@ -86,7 +85,7 @@ def guass_likelihood_loss(logits, labels):
 
     result = -tf.math.log(tf.math.maximum(result, epsilon))
 
-    return tf.reduce_mean(result)
+    return tf.reduce_sum(result) / x_data.shape[0]
 
 def huber_loss(predictions, labels, delta = 1.0):
     residual = tf.abs(predictions - labels)
@@ -100,8 +99,8 @@ def train(args):
     dataset = ArgoverseData(args)
     dataset.load_data(force_reproduce = True)
 
-    lr_scheduler =tf.keras.optimizers.schedules.ExponentialDecay(initial_learning_rate=0.001, decay_steps=5*dataset.num_batchs, decay_rate=0.7)
-    optimizer = tf.keras.optimizers.Adam(learning_rate=0.001)
+    lr_scheduler =tf.keras.optimizers.schedules.ExponentialDecay(initial_learning_rate=0.001, decay_steps=5*dataset.num_batchs, decay_rate=0.7, staircase=True)
+    optimizer = tf.keras.optimizers.Adam(learning_rate=lr_scheduler)
 
     vectornet = VectorNet(args)
 
@@ -140,6 +139,9 @@ def train(args):
                 grads = tape.gradient(loss, vectornet.trainable_variables)
 
                 optimizer.apply_gradients(zip(grads, vectornet.trainable_variables))
+                
+                # print(optimizer._decayed_lr('float32').numpy())
+                # print("learning_rate:" + str(optimizer.learning_rate))
 
         print("{}/{}, loss:{}".format(epoch, args.num_epochs, loss))
 
@@ -154,7 +156,7 @@ def train(args):
     # miss_threshold: float,
     # forecasted_probabilities: Optional[Dict[int, List[float]]] = None,
 def measure_metric(args, epoch, model, features, labels, masks, graph_masks, params, origin_input_trajs):
-    logits = model([features, masks, graph_masks], training = True)
+    logits = model([features, masks, graph_masks], training = False)
     mux, muy, sx, sy, corr = get_coef(logits)
 
     # print(labels)
@@ -168,11 +170,11 @@ def measure_metric(args, epoch, model, features, labels, masks, graph_masks, par
             cov = [[sx[j][i][0] * sx[j][i][0], corr[j][i][0] * sx[j][i][0] * sy[j][i][0]], 
                 [corr[j][i][0] *  sx[j][i][0] * sy[j][i][0], sy[j][i][0] * sy[j][i][0]]]
 
-            mean = np.array(mean, dtype='float')
-            cov = np.array(cov, dtype='float')
-            next_values = np.random.multivariate_normal(mean, cov, 1)
+            #mean = np.array(mean, dtype='float')
+            #cov = np.array(cov, dtype='float')
+            #next_values = np.random.multivariate_normal(mean, cov, 1)
 
-            pred_trajs.append([next_values[0][0], next_values[0][1]])
+            pred_trajs.append(mean)
 
         # print(np.array(pred_trajs).shape)
         # print(labels[j].shape)
@@ -455,14 +457,14 @@ def viz_predictions_helper(forecasted_trajectories, gt_trajectories, params, ori
 def main():
     parser = argparse.ArgumentParser()
 
-    parser.add_argument('--num_epochs', type = int, default = 25, help = 'Number of epochs')
+    parser.add_argument('--num_epochs', type = int, default = 50, help = 'Number of epochs')
     parser.add_argument('--obs_len', type = int, default = 20, help = "Observed length of the trajectory")
     parser.add_argument('--pred_len', type = int, default = 30, help = "Prediction length of the trajectory")
     parser.add_argument('--mode', default = 'train', type = str, help = 'train/val/test')
     parser.add_argument('--metric_every', default = 5, type = int, help = 'caculate metric every x epoch')
-    parser.add_argument('--data_dir', default = "../../vectornet/data/train/data/", type = str, help = 'training data path')
+    parser.add_argument('--data_dir', default = "/home/featurize/data/data/train/data/", type = str, help = 'training data path')
 
-    parser.add_argument('--batch_size', type = int, default = 10, help = "batch size")
+    parser.add_argument('--batch_size', type = int, default = 32, help = "batch size")
 
     # root_dir = '../../vectornet/data/forecasting_sample/data/'
     args = parser.parse_args()
