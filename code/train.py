@@ -110,7 +110,7 @@ def train(args):
     for epoch in range(args.num_epochs):
         loss = 0
         for batch in range(dataset.num_batchs):
-            x_batch, y_batch, mask_batch, graph_mask_batch, param_batch, origin_input_traj_batch = dataset.next_batch()
+            x_batch, y_batch, mask_batch, graph_mask_batch, param_batch, origin_input_traj_batch, pid_batch, node_mask_batch = dataset.next_batch()
 
             # print("mask batch:")
             # print(mask_batch.shape)
@@ -120,7 +120,7 @@ def train(args):
 
 
             with tf.GradientTape() as tape:
-                logits = vectornet([x_batch, mask_batch, graph_mask_batch], training = True)
+                logits = vectornet([x_batch, mask_batch, graph_mask_batch, pid_batch, node_mask_batch], training = True)
 
                 # print(logits)
 
@@ -146,7 +146,7 @@ def train(args):
         print("{}/{}, loss:{}".format(epoch, args.num_epochs, loss))
 
         if (epoch + 1) % args.metric_every == 0 or epoch + 1 == args.num_epochs:
-            measure_metric(args, epoch, vectornet, x_batch, y_batch, mask_batch, graph_mask_batch, param_batch, origin_input_traj_batch)
+            measure_metric(args, epoch, vectornet, x_batch, y_batch, mask_batch, graph_mask_batch, param_batch, origin_input_traj_batch, pid_batch, node_mask_batch)
     # get_displacement_errors_and_miss_rate()
 
     # forecasted_trajectories: Dict[int, List[np.ndarray]],
@@ -155,8 +155,8 @@ def train(args):
     # horizon: int,
     # miss_threshold: float,
     # forecasted_probabilities: Optional[Dict[int, List[float]]] = None,
-def measure_metric(args, epoch, model, features, labels, masks, graph_masks, params, origin_input_trajs):
-    logits = model([features, masks, graph_masks], training = False)
+def measure_metric(args, epoch, model, features, labels, masks, graph_masks, params, origin_input_trajs, pids, node_masks):
+    logits = model([features, masks, graph_masks, pids, node_masks], training = False)
     mux, muy, sx, sy, corr = get_coef(logits)
 
     # print(labels)

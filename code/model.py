@@ -147,16 +147,22 @@ class VectorNet(tf.keras.Model):
         masks = inputs[1]
         graph_masks = inputs[2]
 
+        pids = inputs[3]
+        node_masks = inputs[4]
+
         batch_size = features.shape[0]
         sub_graph_size = features.shape[1]
         feature_len = features.shape[-1]
-        sub_graph_output_dim = feature_len * 2**self.layers_num
+        sub_graph_output_dim = feature_len * 2**self.layers_num + 2
 
         # features = tf.keras.layers.BatchNormalization()(features, training = training)
 
         global_graphs = tf.zeros([0, sub_graph_size, sub_graph_output_dim])
         for batch_idx in range(batch_size):
             global_graph = self.sub_graph(features[batch_idx], training, masks[batch_idx])
+
+            global_graph = tf.concat([global_graph, pids[batch_idx]], axis = -1)
+
             global_graph = tf.expand_dims(global_graph, 0)
 
             global_graphs = tf.concat([global_graphs, global_graph], axis = 0)
@@ -164,8 +170,8 @@ class VectorNet(tf.keras.Model):
         # output: global_graphs = [batch_size, sub_graph, feature_len * 2**self.layers_num]
 
         # tf.print(global_graphs)
-        # x = tf.math.l2_normalize(global_graphs, axis = -1)
-        x = global_graphs
+        x = tf.math.l2_normalize(global_graphs, axis = -1)
+        # x = global_graphs
 
         x, attention_score = self.global_graph([x, graph_masks], training)
 
