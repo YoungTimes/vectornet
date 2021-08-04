@@ -601,10 +601,14 @@ class ArgoverseData(object):
 
             sub_graph = np.array(sub_graph)
 
-            node_mask = sub_graph[:, :, [4]] == 1
+            node_mask = sub_graph[:, 0, [4]] == 1
             node_mask = np.squeeze(node_mask)
+
+            # print(np.array(node_mask).shape)
+            # sys.exit(-1)
+
             lane_idxs = np.argwhere(node_mask == True)
-            random_cnt = (int)(lane_idxs.shape[0] * 0.3)
+            random_cnt = 10 # (int)(lane_idxs.shape[0] * 0.3)
             indexs = np.random.choice(np.arange(lane_idxs.shape[0]), size = random_cnt, replace = False)
             lane_random_idxs = lane_idxs[indexs]
             node_mask = np.full(node_mask.shape, False)

@@ -1,4 +1,7 @@
+import re
 import sys
+
+from tensorflow.python.keras.losses import huber
 from preprocess import ArgoverseData
 from model import VectorNet
 import argparse
@@ -88,12 +91,18 @@ def guass_likelihood_loss(logits, labels):
     return tf.reduce_sum(result) / x_data.shape[0]
 
 def huber_loss(predictions, labels, delta = 1.0):
-    residual = tf.abs(predictions - labels)
-    condition = tf.less(residual, delta)
-    small_res = 0.5 * tf.square(residual)
-    large_res = delta * residual - 0.5 * tf.square(delta)
+    return tf.keras.losses.Huber()(labels, predictions)
 
-    return tf.select(condition, small_res, large_res)
+#     return tf.losses.huber_loss(labels, predictions, delta = delta)
+
+#     residual = tf.abs(predictions - labels)
+#     condition = tf.less(residual, delta)
+#     small_res = 0.5 * tf.square(residual)
+#     large_res = delta * residual - 0.5 * tf.square(delta)
+
+#     loss_value = tf.where(condition, small_res, large_res)
+
+#     return tf.reduce_sum(loss_value) / labels.shape[0]
 
 def train(args):
     dataset = ArgoverseData(args)
@@ -120,7 +129,7 @@ def train(args):
 
 
             with tf.GradientTape() as tape:
-                logits = vectornet([x_batch, mask_batch, graph_mask_batch, pid_batch, node_mask_batch], training = True)
+                logits, node_cmp, node_true = vectornet([x_batch, mask_batch, graph_mask_batch, pid_batch, node_mask_batch], training = True)
 
                 # print(logits)
 
@@ -128,9 +137,14 @@ def train(args):
 
                 guass_loss_val = guass_likelihood_loss(logits, y_batch)
 
-                huber_loss_val = 0 # huber_loss(y_batch, logits)
+                # node_true = tf.boolean_mask(x_batch, node_mask_batch)
 
-                loss = guass_loss_val # + huber_loss_val
+
+                # mask = tf.math.logical_not(tf.math.equal(node_mask_batch, True))
+
+                huber_loss_val = huber_loss(node_cmp, node_true)
+
+                loss = guass_loss_val + huber_loss_val
 
                 # print(loss)
 
@@ -156,7 +170,7 @@ def train(args):
     # miss_threshold: float,
     # forecasted_probabilities: Optional[Dict[int, List[float]]] = None,
 def measure_metric(args, epoch, model, features, labels, masks, graph_masks, params, origin_input_trajs, pids, node_masks):
-    logits = model([features, masks, graph_masks, pids, node_masks], training = False)
+    logits, node_cmp, node_true = model([features, masks, graph_masks, pids, node_masks], training = False)
     mux, muy, sx, sy, corr = get_coef(logits)
 
     # print(labels)
@@ -463,7 +477,6 @@ def main():
     parser.add_argument('--mode', default = 'train', type = str, help = 'train/val/test')
     parser.add_argument('--metric_every', default = 5, type = int, help = 'caculate metric every x epoch')
     parser.add_argument('--data_dir', default = "/home/featurize/data/data/train/data/", type = str, help = 'training data path')
-
     parser.add_argument('--batch_size', type = int, default = 32, help = "batch size")
 
     # root_dir = '../../vectornet/data/forecasting_sample/data/'

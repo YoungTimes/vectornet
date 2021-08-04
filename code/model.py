@@ -130,6 +130,8 @@ class VectorNet(tf.keras.Model):
 
         self.pred_len = arg.pred_len
 
+        self.polyline_num = 10
+
 
     def build(self, input_shape):
 
@@ -138,6 +140,9 @@ class VectorNet(tf.keras.Model):
 
         batch_size = input_shape[0][0]
         self.decoder = MLP(batch_size, self.pred_len * 5, True)
+
+        sub_graph_output_dim = feature_len * 2**self.layers_num + 2
+        self.node_decoder = MLP(batch_size, self.polyline_num * sub_graph_output_dim, True)
 
 
     def call(self, inputs, training = True):
@@ -173,13 +178,20 @@ class VectorNet(tf.keras.Model):
         x = tf.math.l2_normalize(global_graphs, axis = -1)
         # x = global_graphs
 
-        x, attention_score = self.global_graph([x, graph_masks], training)
+        graph_masks = tf.logical_and(graph_masks, node_masks)
+
+        node_true = tf.boolean_mask(global_graphs, node_masks)
+
+        attention_feature, attention_score = self.global_graph([x, graph_masks], training)
 
         # output: x = [batch_size, sub_graph, 64]
 
-        x = self.decoder(x)
-
+        x = self.decoder(attention_feature)
         x = tf.reshape(x, [batch_size, self.pred_len, 5])
 
-        return x
+        node_cmp = self.node_decoder(attention_feature)
+        node_cmp = tf.reshape(node_cmp, [batch_size * self.polyline_num,  sub_graph_output_dim])
+
+
+        return x, node_cmp, node_true
         
