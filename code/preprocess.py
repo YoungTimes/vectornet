@@ -608,7 +608,7 @@ class ArgoverseData(object):
             # sys.exit(-1)
 
             lane_idxs = np.argwhere(node_mask == True)
-            random_cnt = 10 # (int)(lane_idxs.shape[0] * 0.3)
+            random_cnt = 5 # (int)(lane_idxs.shape[0] * 0.3)
             indexs = np.random.choice(np.arange(lane_idxs.shape[0]), size = random_cnt, replace = False)
             lane_random_idxs = lane_idxs[indexs]
             node_mask = np.full(node_mask.shape, False)
@@ -682,14 +682,14 @@ class ArgoverseData(object):
             # scale_4 =  max_4 - min_4
 
 
-            sub_graph[:, :, [0, 2]] = sub_graph[:, :, [0, 2]] / x_scale
-            sub_graph[:, :, [1, 3]] = sub_graph[:, :, [1, 3]] / y_scale
+            # sub_graph[:, :, [0, 2]] = sub_graph[:, :, [0, 2]] / x_scale
+            # sub_graph[:, :, [1, 3]] = sub_graph[:, :, [1, 3]] / y_scale
 
-            sub_graph[:, :, [4]] = sub_graph[:, :, [4]] / scale_4
+            # sub_graph[:, :, [4]] = sub_graph[:, :, [4]] / scale_4
             # sub_graph[:, :, [5]] = sub_graph[:, :, [5]] / scale_5
             # sub_graph[:, :, [6]] = sub_graph[:, :, [6]] / scale_6
             # sub_graph[:, :, [7]] = sub_graph[:, :, [7]] / scale_7
-            sub_graph[:, :, [8]] = sub_graph[:, :, [8]] / scale_8
+            # sub_graph[:, :, [8]] = sub_graph[:, :, [8]] / scale_8
 
             # print("x_scale:" + str(x_scale) + ", y_scale:" + str(y_scale))
 

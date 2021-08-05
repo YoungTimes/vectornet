@@ -130,7 +130,7 @@ class VectorNet(tf.keras.Model):
 
         self.pred_len = arg.pred_len
 
-        self.polyline_num = 10
+        self.polyline_num = 5
 
 
     def build(self, input_shape):
