@@ -17,6 +17,7 @@ from shapely.geometry import Point, Polygon, LineString, LinearRing
 from shapely.affinity import affine_transform, rotate
 
 import tensorflow as tf
+import datetime
 # TODO: learn about generator
 
 # dataset_filename = "./train_dataset.pkl"
@@ -88,10 +89,18 @@ def guass_likelihood_loss(logits, labels):
 
     result = -tf.math.log(tf.math.maximum(result, epsilon))
 
+    # print(result.shape)
+
+                # mask = tf.math.logical_not(tf.math.equal(real, 0))
+                # loss_ = loss_object(real, pred)
+
+                # mask = tf.cast(mask, dtype=loss_.dtype)
+                # loss_ *= mask
+
     return tf.reduce_sum(result) / x_data.shape[0]
 
 def huber_loss(predictions, labels, delta = 1.0):
-    return tf.keras.losses.Huber()(labels, predictions)
+    return tf.keras.losses.Huber(delta=1.0, reduction=tf.keras.losses.Reduction.SUM)(labels, predictions) / predictions.shape[0]
 
 #     return tf.losses.huber_loss(labels, predictions, delta = delta)
 
@@ -116,10 +125,19 @@ def train(args):
     print("num_epochs:" + str(args.num_epochs))
     print("num batchs:" + str(dataset.num_batchs))
 
+    train_loss = tf.keras.metrics.Mean('train_loss', dtype=tf.float32)
+    test_loss = tf.keras.metrics.Mean('test_loss', dtype=tf.float32)
+
+    current_time = datetime.datetime.now().strftime("%Y%m%d-%H%M%S")
+    train_log_dir = 'logs/gradient_tape/' + current_time + '/train'
+    test_log_dir = 'logs/gradient_tape/' + current_time + '/test'
+    train_summary_writer = tf.summary.create_file_writer(train_log_dir)
+    test_summary_writer = tf.summary.create_file_writer(test_log_dir)
+
     for epoch in range(args.num_epochs):
         loss = 0
         for batch in range(dataset.num_batchs):
-            x_batch, y_batch, mask_batch, graph_mask_batch, param_batch, origin_input_traj_batch, pid_batch, node_mask_batch = dataset.next_batch()
+            x_batch, y_batch, mask_batch, graph_mask_batch, param_batch, origin_input_traj_batch, pid_batch, node_mask_batch, origin_features_batch = dataset.next_batch()
 
             # print("mask batch:")
             # print(mask_batch.shape)
@@ -129,7 +147,7 @@ def train(args):
 
 
             with tf.GradientTape() as tape:
-                logits, node_cmp, node_true = vectornet([x_batch, mask_batch, graph_mask_batch, pid_batch, node_mask_batch], training = True)
+                logits, scores, node_cmp, node_true = vectornet([x_batch, mask_batch, graph_mask_batch, pid_batch, node_mask_batch], training = True)
 
                 # print(logits)
 
@@ -144,6 +162,8 @@ def train(args):
 
                 huber_loss_val = huber_loss(node_cmp, node_true)
 
+                # print("guass loss:" + str(guass_loss_val) + ", huber loss:" + str(huber_loss_val))
+
                 loss = guass_loss_val + huber_loss_val
 
                 # print(loss)
@@ -153,14 +173,44 @@ def train(args):
                 grads = tape.gradient(loss, vectornet.trainable_variables)
 
                 optimizer.apply_gradients(zip(grads, vectornet.trainable_variables))
+
+                
                 
                 # print(optimizer._decayed_lr('float32').numpy())
                 # print("learning_rate:" + str(optimizer.learning_rate))
 
         print("{}/{}, loss:{}".format(epoch, args.num_epochs, loss))
 
+        train_loss(loss)
+        with train_summary_writer.as_default():
+            tf.summary.scalar('loss', train_loss.result(), step=epoch)
+            # tf.summary.scalar('accuracy', train_accuracy.result(), step=epoch)
+
+
+        obs_traj_idx = np.argwhere(x_batch[:, :, 0, [4]] == 2)
+
+
+
+        # print(obs_traj_idx[:, :2])
+
+        obs_traj_scores = tf.gather_nd(scores, obs_traj_idx[:, :2])
+
+        scores_top_k = tf.math.top_k(obs_traj_scores, 3, sorted = False)
+        # print("++++++++++++++=======================")
+        # print(scores_top_k)
+        scores_top_k_idx = scores_top_k.indices
+
+        # print("================================")
+        # print(scores_top_k_idx)
+
+        origin_features = []
+        for origin_feature_idx in range(len(scores_top_k_idx)):
+            origin_features.append(origin_features_batch[origin_feature_idx, scores_top_k_idx[origin_feature_idx]])
+
+        # print(np.array(origin_features).shape)
+
         if (epoch + 1) % args.metric_every == 0 or epoch + 1 == args.num_epochs:
-            measure_metric(args, epoch, vectornet, x_batch, y_batch, mask_batch, graph_mask_batch, param_batch, origin_input_traj_batch, pid_batch, node_mask_batch)
+            measure_metric(args, epoch, vectornet, x_batch, y_batch, mask_batch, graph_mask_batch, param_batch, origin_input_traj_batch, pid_batch, node_mask_batch, origin_features)
     # get_displacement_errors_and_miss_rate()
 
     # forecasted_trajectories: Dict[int, List[np.ndarray]],
@@ -169,8 +219,8 @@ def train(args):
     # horizon: int,
     # miss_threshold: float,
     # forecasted_probabilities: Optional[Dict[int, List[float]]] = None,
-def measure_metric(args, epoch, model, features, labels, masks, graph_masks, params, origin_input_trajs, pids, node_masks):
-    logits, node_cmp, node_true = model([features, masks, graph_masks, pids, node_masks], training = False)
+def measure_metric(args, epoch, model, features, labels, masks, graph_masks, params, origin_input_trajs, pids, node_masks, origin_features):
+    logits, scores, node_cmp, node_true = model([features, masks, graph_masks, pids, node_masks], training = False)
     mux, muy, sx, sy, corr = get_coef(logits)
 
     # print(labels)
@@ -181,8 +231,8 @@ def measure_metric(args, epoch, model, features, labels, masks, graph_masks, par
         pred_trajs = []
         for i in range(args.pred_len):
             mean = [mux[j][i][0], muy[j][i][0]]
-            cov = [[sx[j][i][0] * sx[j][i][0], corr[j][i][0] * sx[j][i][0] * sy[j][i][0]], 
-                [corr[j][i][0] *  sx[j][i][0] * sy[j][i][0], sy[j][i][0] * sy[j][i][0]]]
+            # cov = [[sx[j][i][0] * sx[j][i][0], corr[j][i][0] * sx[j][i][0] * sy[j][i][0]], 
+            #     [corr[j][i][0] *  sx[j][i][0] * sy[j][i][0], sy[j][i][0] * sy[j][i][0]]]
 
             #mean = np.array(mean, dtype='float')
             #cov = np.array(cov, dtype='float')
@@ -214,8 +264,8 @@ def measure_metric(args, epoch, model, features, labels, masks, graph_masks, par
         for k in range(1, len(pred_trajs)):
             pred_trajs[k] = pred_trajs[k - 1] + pred_trajs[k]
 
-        pred_trajs[:, [0]] = pred_trajs[:, [0]] * scale_x
-        pred_trajs[:, [1]] = pred_trajs[:, [1]] * scale_y
+        # pred_trajs[:, [0]] = pred_trajs[:, [0]] * scale_x
+        # pred_trajs[:, [1]] = pred_trajs[:, [1]] * scale_y
 
         pred_trajs = normalized_to_map_coordinates(pred_trajs, translation, rotation)
 
@@ -224,8 +274,8 @@ def measure_metric(args, epoch, model, features, labels, masks, graph_masks, par
         for k in range(1, len(labels[j])):
             labels[j][k] = labels[j][k - 1] + labels[j][k]
 
-        labels[j][:, [0]] = labels[j][:, [0]] * scale_x
-        labels[j][:, [1]] = labels[j][:, [1]] * scale_y
+        # labels[j][:, [0]] = labels[j][:, [0]] * scale_x
+        # labels[j][:, [1]] = labels[j][:, [1]] * scale_y
 
         labels[j] = normalized_to_map_coordinates(labels[j], translation, rotation)
 
@@ -255,7 +305,7 @@ def measure_metric(args, epoch, model, features, labels, masks, graph_masks, par
     print("------------------------------------------------")
 
     if epoch + 1 == args.num_epochs:
-        viz_predictions_helper(forecasted_trajectories, gt_trajectories, params, origin_input_trajs)
+        viz_predictions_helper(forecasted_trajectories, gt_trajectories, params, origin_input_trajs, origin_features)
 
 def normalized_to_map_coordinates(coords, translation, rotation):
     """Denormalize trajectory to bring it back to map frame.
@@ -353,16 +403,16 @@ def viz_predictions(
             markersize=9,
         )
 
-        # for j in range(len(centerlines[i])):
-        #     plt.plot(
-        #         centerlines[i][j][:, 0],
-        #         centerlines[i][j][:, 1],
-        #         "--",
-        #         color="grey",
-        #         alpha=1,
-        #         linewidth=1,
-        #         zorder=0,
-        #     )
+        for j in range(len(centerlines[i])):
+            plt.plot(
+                centerlines[i][j][:, 0],
+                centerlines[i][j][:, 1],
+                "--",
+                color="grey",
+                alpha=1,
+                linewidth=1,
+                zorder=0,
+            )
 
         for j in range(len(output[i])):
             plt.plot(
@@ -418,16 +468,16 @@ def viz_predictions(
         if show:
             plt.show()
 
-def viz_predictions_helper(forecasted_trajectories, gt_trajectories, params, origin_input_trajs):
+def viz_predictions_helper(forecasted_trajectories, gt_trajectories, params, origin_input_trajs, origin_features):
     seq_ids = list(gt_trajectories.keys())
     for i in range(len(seq_ids)):
         seq_id = seq_ids[i]
         gt_trajectory = gt_trajectories[seq_id]
         output_trajectories = forecasted_trajectories[seq_id]
-        # candidate_centerlines = origin_features[i]
+        candidate_centerlines = origin_features[i]
         input_trajectory = origin_input_trajs[i]
 
-        candidate_centerlines = np.array([])
+        # candidate_centerlines = np.array([])
 
 
 # def viz_predictions_helper(
@@ -454,7 +504,7 @@ def viz_predictions_helper(forecasted_trajectories, gt_trajectories, params, ori
         gt_trajectory = np.expand_dims(gt_trajectory, 0)
         input_trajectory = np.expand_dims(input_trajectory, 0)
         output_trajectories = np.expand_dims(np.array(output_trajectories), 0)
-        # candidate_centerlines = np.expand_dims(np.array(candidate_centerlines), 0)
+        candidate_centerlines = np.expand_dims(np.array(candidate_centerlines), 0)
         city_name = np.array([params[i][1]])
         # print(city_name)
 
@@ -476,10 +526,12 @@ def main():
     parser.add_argument('--pred_len', type = int, default = 30, help = "Prediction length of the trajectory")
     parser.add_argument('--mode', default = 'train', type = str, help = 'train/val/test')
     parser.add_argument('--metric_every', default = 5, type = int, help = 'caculate metric every x epoch')
-    parser.add_argument('--data_dir', default = "/home/featurize/data/data/train/data/", type = str, help = 'training data path')
+    parser.add_argument('--data_dir', default = "/home/featurize/data/data/", type = str, help = 'training data path')
     parser.add_argument('--batch_size', type = int, default = 32, help = "batch size")
 
     # root_dir = '../../vectornet/data/forecasting_sample/data/'
+
+    # /home/featurize/data/data/
     args = parser.parse_args()
 
     train(args)

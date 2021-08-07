@@ -48,7 +48,7 @@ class ArgoverseData(object):
 
         self.node_masks = []
 
-        # self.origin_features = []
+        self.origin_features = []
         self.origin_input_trajs = []
 
         self.args = args
@@ -62,7 +62,7 @@ class ArgoverseData(object):
         self.obs_len = 20
         self.pred_len = 30
 
-        self.feature_small_size = 32
+        self.feature_small_size = 320
 
     def next_batch(self):
         x_batch = []
@@ -70,7 +70,7 @@ class ArgoverseData(object):
         mask_batch = []
         graph_mask_batch = []
         param_batch = []
-        # origin_feature_batch = []
+        origin_feature_batch = []
         origin_input_traj_batch = []
 
         pid_batch = []
@@ -94,7 +94,7 @@ class ArgoverseData(object):
             mask_batch.append(self.masks[self.batch_pointer])
             graph_mask_batch.append(self.graph_masks[self.batch_pointer])
             param_batch.append(self.params[self.batch_pointer])
-            # origin_feature_batch.append(self.origin_features[self.batch_pointer])
+            origin_feature_batch.append(self.origin_features[self.batch_pointer])
             origin_input_traj_batch.append(self.origin_input_trajs[self.batch_pointer])
             pid_batch.append(self.pids[self.batch_pointer])
             node_mask_batch.append(self.node_masks[self.batch_pointer])
@@ -107,7 +107,7 @@ class ArgoverseData(object):
         mask_batch = np.array(mask_batch).astype(bool)
         graph_mask_batch = np.array(graph_mask_batch).astype(bool)
         param_batch = np.array(param_batch)
-        # origin_feature_batch = np.array(origin_feature_batch)
+        origin_feature_batch = np.array(origin_feature_batch)
         origin_input_traj_batch = np.array(origin_input_traj_batch)
 
         pid_batch = np.array(pid_batch)
@@ -132,13 +132,13 @@ class ArgoverseData(object):
         mask_batch = mask_batch[random_indices, :]
         graph_mask_batch = graph_mask_batch[random_indices, :]
         param_batch = param_batch[random_indices, :]
-        # origin_feature_batch = origin_feature_batch[random_indices]
+        origin_feature_batch = origin_feature_batch[random_indices]
         origin_input_traj_batch = origin_input_traj_batch[random_indices]
 
         pid_batch = pid_batch[random_indices, :]
         node_mask_batch = node_mask_batch[random_indices, :]
 
-        return x_batch, y_batch, mask_batch, graph_mask_batch, param_batch, origin_input_traj_batch, pid_batch, node_mask_batch
+        return x_batch, y_batch, mask_batch, graph_mask_batch, param_batch, origin_input_traj_batch, pid_batch, node_mask_batch, origin_feature_batch
 
     def load_data(self, force_reproduce = False):
 
@@ -150,7 +150,7 @@ class ArgoverseData(object):
                 self.masks = data['masks']
                 self.graph_masks = data['graph_masks']
                 self.params = data['params']
-                # self.origin_features = data["origin_features"]
+                self.origin_features = data["origin_features"]
                 self.origin_input_trajs = data["origin_input_trajs"]
                 self.pids = data["pids"]
                 self.node_masks = data["node_masks"]
@@ -407,6 +407,8 @@ class ArgoverseData(object):
                     in_intersection = avm.lane_is_in_intersection(lane_id, city_name)
                     origin_center_line = avm.get_lane_segment_centerline(lane_id, city_name)
 
+                    origin_center_lines.append(origin_center_line)
+
                     # print(origin_center_line)
                     centerline_2d = np.delete(origin_center_line, -1, axis=-1)
 
@@ -415,8 +417,6 @@ class ArgoverseData(object):
                     # print(origin_center_line)
 
                     center_line = self.normalized_map(origin_center_line, base_pt, angle)
-
-                    origin_center_lines.append(center_line)
 
                     lane_features = []
                     for cl_indx in range(1, len(center_line)):
@@ -461,6 +461,7 @@ class ArgoverseData(object):
 
                         lane_feature.append(lane_id)
                         # lane_feature.append(0)
+                        # print(lane_id)
 
                         lane_features.append(lane_feature)
 
@@ -508,6 +509,7 @@ class ArgoverseData(object):
             #     print("sub graph no data")
             #     continue
             # add agent traj features
+            origin_center_lines.append(agent_traj[:self.obs_len])
             agent_features = []
             # obs_traj
             for agent_idx in range(1, self.obs_len):
@@ -577,6 +579,8 @@ class ArgoverseData(object):
                 # print([[[0, 0]] * (self.max_elems_in_sub_graph - len(sub_graph))])
                 sub_pids.extend([[0, 0]] * (self.max_elems_in_sub_graph - len(sub_graph)))
 
+                origin_center_lines.extend([[0]] * (self.max_elems_in_sub_graph - len(sub_graph)))
+
                 # print([0] * (self.max_elems_in_sub_graph - len(graph_mask)))
                 graph_mask.extend([False] * (self.max_elems_in_sub_graph - len(sub_graph)))
 
@@ -593,6 +597,8 @@ class ArgoverseData(object):
 
                 sub_pids = sub_pids[:self.max_elems_in_sub_graph]
 
+                origin_center_lines = origin_center_lines[:self.max_elems_in_sub_graph]
+
             # print("grpah mask len:" + str(len(graph_mask)))
 
             # print("sub pids:" + str(np.array(sub_pids).shape))
@@ -601,19 +607,29 @@ class ArgoverseData(object):
 
             sub_graph = np.array(sub_graph)
 
-            node_mask = sub_graph[:, 0, [4]] == 1
-            node_mask = np.squeeze(node_mask)
+            # node_mask = sub_graph[:, 0, [4]] == 1
+            # node_mask = np.squeeze(node_mask)
 
             # print(np.array(node_mask).shape)
             # sys.exit(-1)
 
+            node_mask = np.array(graph_mask)
+
+            # print(node_mask)
+
+            # print(node_mask[0] == True)
+
             lane_idxs = np.argwhere(node_mask == True)
+
+            # print(lane_idxs)
             random_cnt = 5 # (int)(lane_idxs.shape[0] * 0.3)
             indexs = np.random.choice(np.arange(lane_idxs.shape[0]), size = random_cnt, replace = False)
             lane_random_idxs = lane_idxs[indexs]
             node_mask = np.full(node_mask.shape, False)
             # print(lane_random_idxs)
             node_mask[lane_random_idxs] = True
+
+            # print(node_mask)
 
             # sys.exit(-1)
 
@@ -740,7 +756,7 @@ class ArgoverseData(object):
 
             self.node_masks.append(node_mask)
 
-            # self.origin_features.append(origin_center_lines)
+            self.origin_features.append(origin_center_lines)
 
             # print("origin_center_lines:" + str(np.array(origin_center_lines).shape))
 
@@ -756,7 +772,7 @@ class ArgoverseData(object):
         self.params = np.array(self.params)
         self.pids = np.array(self.pids)
         self.node_masks = np.array(self.node_masks)
-        # self.origin_features = np.array(self.origin_features)
+        self.origin_features = np.array(self.origin_features)
         # self.origin_input_trajs = np.array(self.origin_input_trajs)
 
         # node_mask = self.features[:, :, :, [4]] == 1 / scale_4
@@ -808,7 +824,8 @@ class ArgoverseData(object):
         with open(self.pickle_filename, 'wb') as fp:
             pickle.dump({"features" : self.features, "labels" : self.labels,
                 "masks" : self.masks, "graph_masks" : self.graph_masks, "params" : self.params,
-                "origin_input_trajs" : self.origin_input_trajs, "pids" : self.pids, "node_masks" : self.node_masks}, fp, protocol = 0)
+                "origin_input_trajs" : self.origin_input_trajs, "pids" : self.pids, "node_masks" : self.node_masks,
+                "origin_features" : self.origin_features}, fp, protocol = 0)
 
     def get_point_in_polygon_score(self, lane_seq: List[int],
                                     xy_seq: np.ndarray, city_name: str,

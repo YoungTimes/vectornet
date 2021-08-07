@@ -8,8 +8,8 @@ class MLP(tf.keras.Model):
     """
     def __init__(self, input_dim, output_dim, hidden_dim = 64, no_relu = False):
         super(MLP, self).__init__()
-        self.fc1 = tf.keras.layers.Dense(hidden_dim, kernel_initializer=tf.keras.initializers.HeNormal())
-        self.fc2 = tf.keras.layers.Dense(output_dim, kernel_initializer=tf.keras.initializers.HeNormal())
+        self.fc1 = tf.keras.layers.Dense(hidden_dim, kernel_initializer=tf.keras.initializers.HeNormal(), kernel_regularizer=tf.keras.regularizers.L2())
+        self.fc2 = tf.keras.layers.Dense(output_dim, kernel_initializer=tf.keras.initializers.HeNormal(), kernel_regularizer=tf.keras.regularizers.L2())
 
         self.norm = tf.keras.layers.LayerNormalization()
 
@@ -83,6 +83,11 @@ class SubGraph(tf.keras.Model):
         x = self.layer_2(x, training, mask)
         x = self.layer_3(x, training, mask)
 
+        if mask is not None:
+            curr_mask = tf.expand_dims(mask, -1)
+            curr_mask = tf.tile(curr_mask, (1, 1, x.shape[-1]))
+            x = tf.where(curr_mask, x, -1e9)
+
         # x_t = tf.transpose(x, (0, 2, 1))
         x_pool = tf.keras.layers.MaxPool1D(x.shape[1])(x)
         # x_t = tf.transpose(x_pool, (0, 2, 1))
@@ -97,10 +102,10 @@ class SubGraph(tf.keras.Model):
 class GlobalGraph(tf.keras.Model):
     def __init__(self):
         super(GlobalGraph, self).__init__()
-        self.attention = tf.keras.layers.Attention(dropout = 0.1, use_scale = True)
-        self.fc1 = tf.keras.layers.Dense(units = 64, kernel_initializer=tf.keras.initializers.HeNormal())
-        self.fc2 = tf.keras.layers.Dense(units = 64, kernel_initializer=tf.keras.initializers.HeNormal())
-        self.fc3 = tf.keras.layers.Dense(units = 64, kernel_initializer=tf.keras.initializers.HeNormal())
+        self.attention = tf.keras.layers.Attention(dropout = 0.2, use_scale = False, causal = True)
+        self.fc1 = tf.keras.layers.Dense(units = 64, kernel_initializer=tf.keras.initializers.HeNormal(), kernel_regularizer=tf.keras.regularizers.L2())
+        self.fc2 = tf.keras.layers.Dense(units = 64, kernel_initializer=tf.keras.initializers.HeNormal(), kernel_regularizer=tf.keras.regularizers.L2())
+        self.fc3 = tf.keras.layers.Dense(units = 64, kernel_initializer=tf.keras.initializers.HeNormal(), kernel_regularizer=tf.keras.regularizers.L2())
 
     def call(self, inputs, training):
         featues = inputs[0]
@@ -149,6 +154,7 @@ class VectorNet(tf.keras.Model):
         # inputs = [batch_size, sub_graph_size, elem_size, feature_len]
 
         features = inputs[0]
+        # features = tf.keras.layers.BatchNormalization()(features, training = training)
         masks = inputs[1]
         graph_masks = inputs[2]
 
@@ -175,14 +181,21 @@ class VectorNet(tf.keras.Model):
         # output: global_graphs = [batch_size, sub_graph, feature_len * 2**self.layers_num]
 
         # tf.print(global_graphs)
-        x = tf.math.l2_normalize(global_graphs, axis = -1)
         # x = global_graphs
 
-        graph_masks = tf.logical_and(graph_masks, node_masks)
+        if training == True:
+            not_node_masks = tf.logical_not(node_masks)
+            graph_masks = tf.logical_and(graph_masks, not_node_masks)
+
+            # print(graph_masks)
 
         node_true = tf.boolean_mask(global_graphs, node_masks)
+        node_true = tf.reshape(node_true, [batch_size, self.polyline_num,  sub_graph_output_dim])
 
-        attention_feature, attention_score = self.global_graph([x, graph_masks], training)
+        global_graphs = tf.math.l2_normalize(global_graphs, axis = -1)
+
+        # print(node_true)
+        attention_feature, attention_score = self.global_graph([global_graphs, graph_masks], training)
 
         # output: x = [batch_size, sub_graph, 64]
 
@@ -190,8 +203,7 @@ class VectorNet(tf.keras.Model):
         x = tf.reshape(x, [batch_size, self.pred_len, 5])
 
         node_cmp = self.node_decoder(attention_feature)
-        node_cmp = tf.reshape(node_cmp, [batch_size * self.polyline_num,  sub_graph_output_dim])
+        node_cmp = tf.reshape(node_cmp, [batch_size, self.polyline_num,  sub_graph_output_dim])
 
 
-        return x, node_cmp, node_true
-        
+        return x, attention_score, node_cmp, node_true
