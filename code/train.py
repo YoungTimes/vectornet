@@ -115,9 +115,9 @@ def huber_loss(predictions, labels, delta = 1.0):
 
 def train(args):
     dataset = ArgoverseData(args)
-    dataset.load_data(force_reproduce = True)
+    dataset.load_data(force_reproduce = False)
 
-    lr_scheduler =tf.keras.optimizers.schedules.ExponentialDecay(initial_learning_rate=0.001, decay_steps=5*dataset.num_batchs, decay_rate=0.7, staircase=True)
+    lr_scheduler =tf.keras.optimizers.schedules.ExponentialDecay(initial_learning_rate=0.001, decay_steps=5*dataset.num_batchs, decay_rate=0.7, staircase=False)
     optimizer = tf.keras.optimizers.Adam(learning_rate=lr_scheduler)
 
     vectornet = VectorNet(args)
@@ -133,9 +133,16 @@ def train(args):
     test_log_dir = 'logs/gradient_tape/' + current_time + '/test'
     train_summary_writer = tf.summary.create_file_writer(train_log_dir)
     test_summary_writer = tf.summary.create_file_writer(test_log_dir)
+    
+    
+    early_stop_callback = tf.keras.callbacks.EarlyStopping(monitor='loss', patience = 2, verbose = 0, restore_best_weights = False)
+    callbacks = tf.keras.callbacks.CallbackList([early_stop_callback], model=vectornet)
+    logs = {}
 
+    callbacks.on_train_begin(logs = logs)
     for epoch in range(args.num_epochs):
         loss = 0
+        callbacks.on_epoch_begin(epoch, logs = logs)
         for batch in range(dataset.num_batchs):
             x_batch, y_batch, mask_batch, graph_mask_batch, param_batch, origin_input_traj_batch, pid_batch, node_mask_batch, origin_features_batch = dataset.next_batch()
 
@@ -175,7 +182,6 @@ def train(args):
                 optimizer.apply_gradients(zip(grads, vectornet.trainable_variables))
 
                 
-                
                 # print(optimizer._decayed_lr('float32').numpy())
                 # print("learning_rate:" + str(optimizer.learning_rate))
 
@@ -200,17 +206,32 @@ def train(args):
         # print(scores_top_k)
         scores_top_k_idx = scores_top_k.indices
 
-        # print("================================")
-        # print(scores_top_k_idx)
+#         print("================================+++")
+#         print(scores_top_k_idx)
 
         origin_features = []
+#         print("origin_features_batch shape:" + str(origin_features_batch.shape))
+#         print(origin_features_batch)
+#         print("=================")
         for origin_feature_idx in range(len(scores_top_k_idx)):
             origin_features.append(origin_features_batch[origin_feature_idx, scores_top_k_idx[origin_feature_idx]])
 
         # print(np.array(origin_features).shape)
+        # loss_seq.append(loss)
+#         early_stopping = tf.keras.callbacks.EarlyStopping(monitor = 'loss', patience = 3)
+#         early_stopping.set_model(vectornet)
 
-        if (epoch + 1) % args.metric_every == 0 or epoch + 1 == args.num_epochs:
+        logs.update({"loss":loss})
+        callbacks.on_epoch_end(epoch, logs = logs)
+
+        if (epoch + 1) % args.metric_every == 0 or epoch + 1 == args.num_epochs or vectornet.stop_training:
             measure_metric(args, epoch, vectornet, x_batch, y_batch, mask_batch, graph_mask_batch, param_batch, origin_input_traj_batch, pid_batch, node_mask_batch, origin_features)
+
+#         if vectornet.stop_training:
+#             print("Callback_EarlyStopping signal received at epoch= %d/%d, Terminating training"%(epoch, args.num_epochs))
+#             break
+
+    callbacks.on_train_end(logs = logs)
     # get_displacement_errors_and_miss_rate()
 
     # forecasted_trajectories: Dict[int, List[np.ndarray]],
@@ -526,8 +547,9 @@ def main():
     parser.add_argument('--pred_len', type = int, default = 30, help = "Prediction length of the trajectory")
     parser.add_argument('--mode', default = 'train', type = str, help = 'train/val/test')
     parser.add_argument('--metric_every', default = 5, type = int, help = 'caculate metric every x epoch')
-    parser.add_argument('--data_dir', default = "/home/featurize/data/data/", type = str, help = 'training data path')
+    parser.add_argument('--data_dir', default = "/home/liuyang/Documents/code/vectornet/data/", type = str, help = 'training data path')
     parser.add_argument('--batch_size', type = int, default = 32, help = "batch size")
+    parser.add_argument('--split_seq_size', type = int, default = 1000, help = "split seq size")
 
     # root_dir = '../../vectornet/data/forecasting_sample/data/'
 

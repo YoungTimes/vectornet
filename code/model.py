@@ -8,8 +8,8 @@ class MLP(tf.keras.Model):
     """
     def __init__(self, input_dim, output_dim, hidden_dim = 64, no_relu = False):
         super(MLP, self).__init__()
-        self.fc1 = tf.keras.layers.Dense(hidden_dim, kernel_initializer=tf.keras.initializers.HeNormal(), kernel_regularizer=tf.keras.regularizers.L2())
-        self.fc2 = tf.keras.layers.Dense(output_dim, kernel_initializer=tf.keras.initializers.HeNormal(), kernel_regularizer=tf.keras.regularizers.L2())
+        self.fc1 = tf.keras.layers.Dense(output_dim, kernel_initializer=tf.keras.initializers.HeNormal())
+#         self.fc2 = tf.keras.layers.Dense(output_dim, kernel_initializer=tf.keras.initializers.HeNormal(), kernel_regularizer=tf.keras.regularizers.L2())
 
         self.norm = tf.keras.layers.LayerNormalization()
 
@@ -20,7 +20,7 @@ class MLP(tf.keras.Model):
     
     def call(self, inputs):
         x = self.fc1(inputs)
-        x = self.fc2(x)
+        # x = self.fc2(x)
 
         x = self.norm(x)
 
@@ -74,9 +74,9 @@ class SubGraph(tf.keras.Model):
     def __init__(self, len):
         super(SubGraph, self).__init__()
 
-        self.layer_1 = SubGraphLayer(len)
-        self.layer_2 = SubGraphLayer(len * 2)
-        self.layer_3 = SubGraphLayer(len * 4)
+        self.layer_1 = SubGraphLayer(64)
+        self.layer_2 = SubGraphLayer(64)
+        self.layer_3 = SubGraphLayer(64)
 
     def call(self, inputs, training = True, mask = None):
         x = self.layer_1(inputs, training, mask)
@@ -102,10 +102,10 @@ class SubGraph(tf.keras.Model):
 class GlobalGraph(tf.keras.Model):
     def __init__(self):
         super(GlobalGraph, self).__init__()
-        self.attention = tf.keras.layers.Attention(dropout = 0.2, use_scale = False, causal = True)
-        self.fc1 = tf.keras.layers.Dense(units = 64, kernel_initializer=tf.keras.initializers.HeNormal(), kernel_regularizer=tf.keras.regularizers.L2())
-        self.fc2 = tf.keras.layers.Dense(units = 64, kernel_initializer=tf.keras.initializers.HeNormal(), kernel_regularizer=tf.keras.regularizers.L2())
-        self.fc3 = tf.keras.layers.Dense(units = 64, kernel_initializer=tf.keras.initializers.HeNormal(), kernel_regularizer=tf.keras.regularizers.L2())
+        self.attention = tf.keras.layers.Attention(dropout = 0.2, use_scale = False, causal = False)
+        self.fc1 = tf.keras.layers.Dense(units = 64, kernel_initializer=tf.keras.initializers.HeNormal())
+        self.fc2 = tf.keras.layers.Dense(units = 64, kernel_initializer=tf.keras.initializers.HeNormal())
+        self.fc3 = tf.keras.layers.Dense(units = 64, kernel_initializer=tf.keras.initializers.HeNormal())
 
     def call(self, inputs, training):
         featues = inputs[0]
@@ -146,7 +146,7 @@ class VectorNet(tf.keras.Model):
         batch_size = input_shape[0][0]
         self.decoder = MLP(batch_size, self.pred_len * 5, True)
 
-        sub_graph_output_dim = feature_len * 2**self.layers_num + 2
+        sub_graph_output_dim = 128 + 2
         self.node_decoder = MLP(batch_size, self.polyline_num * sub_graph_output_dim, True)
 
 
@@ -164,7 +164,7 @@ class VectorNet(tf.keras.Model):
         batch_size = features.shape[0]
         sub_graph_size = features.shape[1]
         feature_len = features.shape[-1]
-        sub_graph_output_dim = feature_len * 2**self.layers_num + 2
+        sub_graph_output_dim = 128 + 2
 
         # features = tf.keras.layers.BatchNormalization()(features, training = training)
 
