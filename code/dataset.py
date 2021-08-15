@@ -1,36 +1,12 @@
-from re import S
-from numpy.lib.function_base import append
-import pandas as pd
 import pickle
 import sys
 import os
 from typing import Any, Dict, List, Tuple
-import matplotlib.pyplot as plt
 import numpy as np
-from shapely.geometry import LineString, Point, Polygon
-from shapely.ops import cascaded_union
-
-from argoverse.data_loading.argoverse_forecasting_loader import ArgoverseForecastingLoader
-from argoverse.map_representation.map_api import ArgoverseMap
-
-from argoverse.utils.centerline_utils import (
-    remove_overlapping_lane_seq,
-)
-from argoverse.utils.mpl_plotting_utils import visualize_centerline
-
-import multiprocessing
-
 import random
 import pandas as pd
 import math
 import datetime
-
-from shapely.geometry import Point, Polygon, LineString, LinearRing
-from shapely.affinity import affine_transform, rotate
-
-import shutil
-
-import argparse
 
 class ArgoverseData(object):
     def __init__(self, args):
@@ -88,10 +64,11 @@ class ArgoverseData(object):
                 self.feature_file_pointer = self.feature_file_pointer + 1
                 if self.feature_file_pointer >= len(self.feature_file_list):
                     self.feature_file_pointer = 0
-                    self.load_feature_file(self.feature_file_list[self.feature_file_pointer])
-                    
+                    pickle_filename = self.feature_data_dir + self.feature_file_list[self.feature_file_pointer]
+                    self.load_feature_file(pickle_filename)
 
             # print("pointer:" + str(self.batch_pointer) + ", feature len:" + str(len(self.features)))
+            # print("feature_file_pointer:" + str(self.feature_file_pointer) + ", file len:" + str(len(self.feature_file_list)))
 
             # print("===============")
             # print(i)
@@ -167,26 +144,12 @@ class ArgoverseData(object):
             print("empty trainning data")
             return
 
-        pickle_filename = 
+        self.feature_file_list = os.listdir(self.feature_data_dir)
+        self.feature_file_pointer = 0
 
-            # self.load_data_from_origin()
+        pickle_filename = self.feature_data_dir + self.feature_file_list[self.feature_file_pointer]
+        self.load_feature_file(pickle_filename)
 
-        
-            # with open(self.pickle_filename, 'rb') as fp:
-            #     data = pickle.load(fp)
-            #     self.features = data['features']
-            #     self.labels = data['labels']
-            #     self.masks = data['masks']
-            #     self.graph_masks = data['graph_masks']
-            #     self.params = data['params']
-            #     self.origin_features = data["origin_features"]
-            #     self.origin_input_trajs = data["origin_input_trajs"]
-            #     self.pids = data["pids"]
-            #     self.node_masks = data["node_masks"]
-
-            #     print("features len:" + str(len(self.features)) + ", batch size:" + str(self.args.batch_size))
-
-        self.num_batchs = (int)(len(self.features) / self.args.batch_size) + 1
+        self.num_batchs = (int)(len(self.feature_file_list) * self.args.split_seq_size / self.args.batch_size)
 
         return
-

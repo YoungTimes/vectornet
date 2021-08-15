@@ -2,7 +2,7 @@ import re
 import sys
 
 from tensorflow.python.keras.losses import huber
-from preprocess import ArgoverseData
+from dataset import ArgoverseData
 from model import VectorNet
 import argparse
 import numpy as np
@@ -115,7 +115,7 @@ def huber_loss(predictions, labels, delta = 1.0):
 
 def train(args):
     dataset = ArgoverseData(args)
-    dataset.load_data(force_reproduce = False)
+    dataset.load_data()
 
     lr_scheduler =tf.keras.optimizers.schedules.ExponentialDecay(initial_learning_rate=0.001, decay_steps=5*dataset.num_batchs, decay_rate=0.7, staircase=False)
     optimizer = tf.keras.optimizers.Adam(learning_rate=lr_scheduler)
@@ -547,7 +547,7 @@ def main():
     parser.add_argument('--pred_len', type = int, default = 30, help = "Prediction length of the trajectory")
     parser.add_argument('--mode', default = 'train', type = str, help = 'train/val/test')
     parser.add_argument('--metric_every', default = 5, type = int, help = 'caculate metric every x epoch')
-    parser.add_argument('--data_dir', default = "/home/liuyang/Documents/code/vectornet/data/", type = str, help = 'training data path')
+    parser.add_argument('--data_dir', default = "/home/featurize/data/data/", type = str, help = 'training data path')
     parser.add_argument('--batch_size', type = int, default = 32, help = "batch size")
     parser.add_argument('--split_seq_size', type = int, default = 1000, help = "split seq size")
 

@@ -453,13 +453,11 @@ def normalized_map(xy_seq, base_pt, angle):
 def swap_left_and_right(condition, left_centerline, right_centerline):
     """
     Swap points in left and right centerline according to condition.
-
     Args:
     condition: Numpy array of shape (N,) of type boolean. Where true, swap the values in the left and
                 right centerlines.
     left_centerline: The left centerline, whose points should be swapped with the right centerline.
     right_centerline: The right centerline.
-
     Returns:
     left_centerline
     right_centerline
@@ -477,16 +475,13 @@ def swap_left_and_right(condition, left_centerline, right_centerline):
 def centerline_to_polygon(centerline, width_scaling_factor = 1.0, visualize = False):
     """
     Convert a lane centerline polyline into a rough polygon of the lane's area.
-
     On average, a lane is 3.8 meters in width. Thus, we allow 1.9 m on each side.
     We use this as the length of the hypotenuse of a right triangle, and compute the
     other two legs to find the scaled x and y displacement.
-
     Args:
     centerline: Numpy array of shape (N,2).
     width_scaling_factor: Multiplier that scales 3.8 meters to get the lane width.
     visualize: Save a figure showing the the output polygon.
-
     Returns:
     polygon: Numpy array of shape (2N+1,2), with duplicate first and last vertices.
     """
@@ -977,7 +972,7 @@ def main():
     parser.add_argument('--obs_len', type = int, default = 20, help = "Observed length of the trajectory")
     parser.add_argument('--pred_len', type = int, default = 30, help = "Prediction length of the trajectory")
     parser.add_argument('--mode', default = 'train', type = str, help = 'train/val/test')
-    parser.add_argument('--data_dir', default = "/home/liuyang/Documents/code/vectornet/data/", type = str, help = 'training data path')
+    parser.add_argument('--data_dir', default = "/home/featurize/data/data/", type = str, help = 'training data path')
     parser.add_argument('--batch_size', type = int, default = 32, help = "batch size")
     parser.add_argument('--split_seq_size', type = int, default = 1000, help = "split seq size")
     parser.add_argument('--processor_num', type = int, default = 2, help = "process num")
@@ -994,7 +989,7 @@ def main():
     train_data_dir = args.data_dir + "train/data/"
     sequences = os.listdir(train_data_dir)
 
-    num_sequences = len(sequences) # self.feature_small_size
+    num_sequences = 6000 # len(sequences) # self.feature_small_size
     total_task_num = int(num_sequences / args.split_seq_size)
 
     feature_data_dir = args.data_dir + "features/"
@@ -1008,7 +1003,7 @@ def main():
     # load_data_from_origin(args, sequences, 0, 100, output_filename)
 
     pool = multiprocessing.Pool(args.processor_num)
-    for i in range(0, total_task_num - 1):
+    for i in range(0, total_task_num):
         start_seq = i * args.split_seq_size
         end_seq = (i + 1) * args.split_seq_size
         output_filename = feature_data_dir + str(i) + ".pkl"
