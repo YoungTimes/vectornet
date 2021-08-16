@@ -739,10 +739,10 @@ def load_data_from_origin(args, sequences, start_seq, end_seq, output_filename):
             agent_feature.append(2)
 
             # timestamp
-            diff_timestamp = agent_timestamp.iloc[agent_idx - 1] - agent_timestamp.iloc[args.obs_len - 1]
+            diff_timestamp = agent_timestamp.iloc[args.obs_len - 1] - agent_timestamp.iloc[agent_idx - 1]
             agent_feature.append(diff_timestamp)
 
-            diff_timestamp = agent_timestamp.iloc[agent_idx] - agent_timestamp.iloc[args.obs_len - 1]
+            diff_timestamp = agent_timestamp.iloc[args.obs_len - 1] - agent_timestamp.iloc[agent_idx]
             agent_feature.append(diff_timestamp)
 
             # distance
@@ -833,14 +833,14 @@ def load_data_from_origin(args, sequences, start_seq, end_seq, output_filename):
         min_4 = np.min(sub_graph[:, :, [4]])
         max_4 = np.max(sub_graph[:, :, [4]])
 
-        # min_5 = np.min(sub_graph[:, :, [5]])
-        # max_5 = np.max(sub_graph[:, :, [5]])
+        min_5 = np.min(sub_graph[:, :, [5]])
+        max_5 = np.max(sub_graph[:, :, [5]])
 
-        # min_6 = np.min(sub_graph[:, :, [6]])
-        # max_6 = np.max(sub_graph[:, :, [6]])
+        min_6 = np.min(sub_graph[:, :, [6]])
+        max_6 = np.max(sub_graph[:, :, [6]])
 
-        # min_7 = np.min(sub_graph[:, :, [7]])
-        # max_7 = np.max(sub_graph[:, :, [7]])
+        min_7 = np.min(sub_graph[:, :, [7]])
+        max_7 = np.max(sub_graph[:, :, [7]])
 
         min_8 = np.min(sub_graph[:, :, [8]])
         max_8 = np.max(sub_graph[:, :, [8]])
@@ -876,9 +876,9 @@ def load_data_from_origin(args, sequences, start_seq, end_seq, output_filename):
         x_scale =  max(abs(min_x), abs(max_x))
         y_scale =  max(abs(min_y), abs(max_y))
         scale_4 = max(abs(min_4), abs(max_4))
-        # scale_5 = max(abs(min_5), abs(max_5))
-        # scale_6 = max(abs(min_6), abs(max_6))
-        # scale_7 = max(abs(min_7), abs(max_7))
+        scale_5 = max(abs(min_5), abs(max_5))
+        scale_6 = max(abs(min_6), abs(max_6))
+        scale_7 = max(abs(min_7), abs(max_7))
         scale_8 = max(abs(min_8), abs(max_8))
 
         x_scale =  max_x - min_x
@@ -891,9 +891,9 @@ def load_data_from_origin(args, sequences, start_seq, end_seq, output_filename):
         sub_graph[:, :, [1, 3]] = sub_graph[:, :, [1, 3]] / y_scale
 
         sub_graph[:, :, [4]] = sub_graph[:, :, [4]] / scale_4
-        # sub_graph[:, :, [5]] = sub_graph[:, :, [5]] / scale_5
-        # sub_graph[:, :, [6]] = sub_graph[:, :, [6]] / scale_6
-        # sub_graph[:, :, [7]] = sub_graph[:, :, [7]] / scale_7
+        sub_graph[:, :, [5]] = sub_graph[:, :, [5]] / scale_5
+        sub_graph[:, :, [6]] = sub_graph[:, :, [6]] / scale_6
+        sub_graph[:, :, [7]] = sub_graph[:, :, [7]] / scale_7
         sub_graph[:, :, [8]] = sub_graph[:, :, [8]] / scale_8
 
         # print("x_scale:" + str(x_scale) + ", y_scale:" + str(y_scale))
@@ -975,7 +975,7 @@ def main():
     parser.add_argument('--data_dir', default = "/home/featurize/data/data/", type = str, help = 'training data path')
     parser.add_argument('--batch_size', type = int, default = 32, help = "batch size")
     parser.add_argument('--split_seq_size', type = int, default = 1000, help = "split seq size")
-    parser.add_argument('--processor_num', type = int, default = 2, help = "process num")
+    parser.add_argument('--processor_num', type = int, default = 4, help = "process num")
 
     parser.add_argument('--max_elems_in_sub_graph', type = int, default = 100, help = "max_elems_in_sub_graph")
     parser.add_argument('--max_features_in_elems', type = int, default = 100, help = "max_features_in_elems")
@@ -989,7 +989,7 @@ def main():
     train_data_dir = args.data_dir + "train/data/"
     sequences = os.listdir(train_data_dir)
 
-    num_sequences = 6000 # len(sequences) # self.feature_small_size
+    num_sequences = 20000 # len(sequences) # self.feature_small_size
     total_task_num = int(num_sequences / args.split_seq_size)
 
     feature_data_dir = args.data_dir + "features/"

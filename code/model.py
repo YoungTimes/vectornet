@@ -183,14 +183,17 @@ class VectorNet(tf.keras.Model):
         # tf.print(global_graphs)
         # x = global_graphs
 
+        node_true = None
+        node_cmp = None
+
         if training == True:
             not_node_masks = tf.logical_not(node_masks)
             graph_masks = tf.logical_and(graph_masks, not_node_masks)
 
             # print(graph_masks)
 
-        node_true = tf.boolean_mask(global_graphs, node_masks)
-        node_true = tf.reshape(node_true, [batch_size, self.polyline_num,  sub_graph_output_dim])
+            node_true = tf.boolean_mask(global_graphs, node_masks)
+            node_true = tf.reshape(node_true, [batch_size, self.polyline_num,  sub_graph_output_dim])
 
         global_graphs = tf.math.l2_normalize(global_graphs, axis = -1)
 
@@ -202,8 +205,9 @@ class VectorNet(tf.keras.Model):
         x = self.decoder(attention_feature)
         x = tf.reshape(x, [batch_size, self.pred_len, 5])
 
-        node_cmp = self.node_decoder(attention_feature)
-        node_cmp = tf.reshape(node_cmp, [batch_size, self.polyline_num,  sub_graph_output_dim])
+        if training == True:
+            node_cmp = self.node_decoder(attention_feature)
+            node_cmp = tf.reshape(node_cmp, [batch_size, self.polyline_num,  sub_graph_output_dim])
 
 
         return x, attention_score, node_cmp, node_true
